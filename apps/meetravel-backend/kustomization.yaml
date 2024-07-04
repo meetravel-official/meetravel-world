@@ -1,0 +1,18 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+#metadata:
+#  name: meetravel-backend-kustomization
+#  namespace: meetravel-backend  # 이 namesapce에 들어오도록 만들기!
+resources:
+  # configmaps / secrets
+  - configmaps/common-configmap.yaml
+  - configmaps/backend-configmap.yaml
+  - configmaps/meetravel-configmap.yaml
+  # base infra for MSA
+  - base/cluster-role.yaml
+  - discovery/discovery.yaml
+  - configserver/config-server.yaml
+  - configserver/config-watcher.yaml
+  # apps
+#  - user-service/user-service.yaml
+

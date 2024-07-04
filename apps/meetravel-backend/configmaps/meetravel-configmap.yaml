@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: meetravel-configmap
+  namespace: meetravel-backend
+data:
+  application.yaml: |-
+    # rabbitmq server
+    spring:
+      rabbitmq:
+        host: ${rabbitmq.hostname:localhost}
+        port: 5672
+        username: guest
+        password: guest

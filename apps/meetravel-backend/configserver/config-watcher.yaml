@@ -1,0 +1,76 @@
+# ref: https://docs.spring.io/spring-cloud-kubernetes/reference/spring-cloud-kubernetes-configuration-watcher.html
+---
+apiVersion: v1
+kind: List
+items:
+  - apiVersion: v1
+    kind: Service
+    metadata:
+      labels:
+        app: spring-cloud-kubernetes-configuration-watcher
+      name: spring-cloud-kubernetes-configuration-watcher
+      namespace: meetravel-backend
+    spec:
+      ports:
+        - name: http
+          port: 8888
+          targetPort: 8888
+      selector:
+        app: spring-cloud-kubernetes-configuration-watcher
+      type: ClusterIP
+  - apiVersion: v1
+    kind: ServiceAccount
+    metadata:
+      labels:
+        app: spring-cloud-kubernetes-configuration-watcher
+      name: spring-cloud-kubernetes-configuration-watcher
+      namespace: meetravel-backend
+  - apiVersion: rbac.authorization.k8s.io/v1
+    kind: ClusterRoleBinding
+    metadata:
+      labels:
+        app: spring-cloud-kubernetes-configuration-watcher
+      name: spring-cloud-kubernetes-configuration-watcher:view
+      namespace: meetravel-backend
+    roleRef:
+      kind: ClusterRole
+      apiGroup: rbac.authorization.k8s.io
+      name: cluster-role
+    subjects:
+      - kind: ServiceAccount
+        name: spring-cloud-kubernetes-configuration-watcher
+        namespace: meetravel-backend
+  - apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: spring-cloud-kubernetes-configuration-watcher-deployment
+      namespace: meetravel-backend
+    spec:
+      selector:
+        matchLabels:
+          app: spring-cloud-kubernetes-configuration-watcher
+      template:
+        metadata:
+          labels:
+            app: spring-cloud-kubernetes-configuration-watcher
+        spec:
+          serviceAccountName: spring-cloud-kubernetes-configuration-watcher
+          nodeSelector:
+            app: service
+          containers:
+            - name: spring-cloud-kubernetes-configuration-watcher
+              image: springcloud/spring-cloud-kubernetes-configuration-watcher:3.1.2
+              imagePullPolicy: IfNotPresent
+              env:
+                - name: SPRING_CLOUD_KUBERNETES_CONFIGURATION_WATCHER_REFRESHDELAY
+                  value: "10000"
+              readinessProbe:
+                httpGet:
+                  port: 8888
+                  path: /actuator/health/readiness
+              livenessProbe:
+                httpGet:
+                  port: 8888
+                  path: /actuator/health/liveness
+              ports:
+                - containerPort: 8888

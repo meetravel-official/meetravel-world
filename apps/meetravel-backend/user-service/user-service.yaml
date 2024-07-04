@@ -1,0 +1,150 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: user-service-crb
+  namespace: meetravel-backend
+roleRef:
+  kind: ClusterRole
+  name: cluster-role
+  apiGroup: rbac.authorization.k8s.io
+subjects:
+  - kind: ServiceAccount
+    name: user-service-sa
+    apiGroup: ""
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: user-service-sa
+  namespace: meetravel-backend
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: user-service
+  namespace: meetravel-backend
+  labels:
+    env: production
+    tier: cicd
+    app: user-service
+    name: user-service
+spec:
+  selector:
+    env: production
+    tier: backend
+    app: user-service
+    name: user-service-deployment
+  type: NodePort
+  ports:
+    - name: http
+      port: 80
+      targetPort: 9000
+      nodePort: 31000
+---
+apiVersion: autoscaling/v1
+kind: HorizontalPodAutoscaler
+metadata:
+  name: user-service-autoscaler
+  labels:
+    env: production
+    tier: backend
+    app: user-service
+    name: user-service-autoscaler
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: user-service-deployment
+  minReplicas: 1
+  maxReplicas: 3
+  targetCPUUtilizationPercentage: 70
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: user-service-deployment
+  namespace: meetravel-backend
+  labels:
+    env: production
+    tier: backend
+    app: user-service
+    name: user-service-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      env: production
+      tier: backend
+      app: user-service
+      name: user-service-deployment
+  template:
+    metadata:
+      labels:
+        env: production
+        tier: backend
+        app: user-service
+        name: user-service-deployment
+    spec:
+      serviceAccountName: user-service-sa
+      nodeSelector: # Be aware this label!
+        app: service
+      containers:
+        - name: user-service
+          image: meetravel/meetravel-backend-user-service:latest
+          imagePullPolicy: Always
+          env:
+            - name: SPRING_PROFILES_ACTIVE
+              value: prod
+          resources:
+            requests:
+              cpu: 300m
+              memory: 500Mi
+            limits:
+              cpu: 300m
+              memory: 500Mi
+          ports:
+            - name: http
+              protocol: TCP
+              containerPort: 9000
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 9000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 9000
+            initialDelaySeconds: 120
+            periodSeconds: 10
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: user-service-ingress
+  namespace: meetravel-backend
+  annotations:
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/subnets: subnet-00cbff553eb8318ef, subnet-034bd15305a16c645 # only private subnets
+  labels:
+    env: production
+    tier: cicd
+    app: user-service
+    name: user-service-ingress
+spec:
+  ingressClassName: alb
+  rules:
+    #    - host: <user-service 도메인> # TODO
+    - http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: jenkins
+                port:
+                  number: 8080
+
